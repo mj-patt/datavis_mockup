@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Visualization Display</title>
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    body { margin: 0; }
+    #frame { width: 100vw; height: 100vh; border: 0; display: block; background-color: white; }
+  </style>
+</head>
+<body>
+  <iframe id="frame" src="index.html"></iframe>
+
+  <script>
+    const STORAGE_KEY = "viz:currentLayer";
+    const frame = document.getElementById("frame");
+
+    function setLayerFromStorage() {
+      const page = localStorage.getItem(STORAGE_KEY) || "index.html";
+      if (frame.getAttribute("src") !== page) frame.setAttribute("src", page);
+    }
+
+    // Initial load
+    setLayerFromStorage();
+
+    // React to changes made from control.html (other window/tab)
+    window.addEventListener("storage", (e) => {
+      if (e.key === STORAGE_KEY) setLayerFromStorage();
+    });
+
+    // Optional: also refresh if user focuses this window
+    window.addEventListener("focus", setLayerFromStorage);
+  </script>
+</body>
+</html>

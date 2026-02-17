@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Authors Overview (Preset)</title>
+  <script src="https://unpkg.com/cytoscape@3.28.1/dist/cytoscape.min.js"></script>
+  <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
+  <style>
+    html,body{margin:0;height:100%; background-color: white;}
+    #cy{width:100%;height:100%}
+  </style>
+</head>
+<body>
+  <div id="cy"></div>
+
+  <script>
+    function normalize(s){ return (s ?? "").toString().trim().replace(/^\uFEFF/, ""); }
+    function parseCsv(text){
+      const res = Papa.parse(text, { header:true, skipEmptyLines:true, dynamicTyping:false, delimiter:";" });
+      return (res.data||[]).filter(r => Object.keys(r).some(k => (r[k]??"").toString().trim() !== ""));
+    }
+    function buildAuthorElements(rows){
+      const paperAuthors = new Map();
+      const authors = new Map();
+
+      for(const r of rows){
+        const author_id = normalize(r.author_id);
+        const author_name = (r.author_name ?? "").toString().trim();
+        const paper_id = normalize(r.paper_id);
+        if(!author_id || !paper_id) continue;
+
+        if(!authors.has(author_id)) authors.set(author_id, author_name || author_id);
+        if(!paperAuthors.has(paper_id)) paperAuthors.set(paper_id, new Set());
+        paperAuthors.get(paper_id).add(author_id);
+      }
+
+      const edgeCounts = new Map();
+      const connected = new Set();
+
+      for(const set of paperAuthors.values()){
+        const list = Array.from(set).sort();
+        if(list.length < 2) continue;
+        for(let i=0;i<list.length;i++){
+          for(let j=i+1;j<list.length;j++){
+            const a=list[i], b=list[j];
+            const key = `${a}|${b}`;
+            edgeCounts.set(key, (edgeCounts.get(key)||0)+1);
+            connected.add(a); connected.add(b);
+          }
+        }
+      }
+
+      const nodes = [];
+      for(const [id,name] of authors.entries()){
+        if(!connected.has(id)) continue;
+        nodes.push({ data:{ id, label:name }});
+      }
+
+      const edges = [];
+      for(const [key,w] of edgeCounts.entries()){
+        const [source,target] = key.split("|");
+        edges.push({ data:{ id:key, source, target, weight:w }});
+      }
+
+      return [...nodes, ...edges];
+    }
+
+    (async () => {
+      const [csvResp, layoutResp] = await Promise.all([
+        fetch("./mockup_data.csv", {cache:"no-store"}),
+        fetch("./authors_layout.json", {cache:"no-store"})
+      ]);
+
+      if(!csvResp.ok) throw new Error("CSV not found");
+      if(!layoutResp.ok) throw new Error("authors_layout.json not found (generate it first)");
+
+      const rows = parseCsv(await csvResp.text());
+      const elements = buildAuthorElements(rows);
+      const saved = await layoutResp.json();
+
+      const cy = cytoscape({
+        container: document.getElementById("cy"),
+        elements,
+        style: [
+          {
+            selector:"node",
+            style:{
+              "background-color":"#8767a8",
+              "width": 10,
+              "height": 10,
+              "label": "data(label)",
+             
+              "font-size": 2.5,
+              'text-outline-width': 0.5,
+              'text-outline-color': '#8767a8',
+              "color":"white",
+
+              "text-valign":"center",
+              "text-halign":"center",
+              "text-wrap":"wrap",
+              "line-height":0.95,
+              "text-max-width": 10
+            }
+          },
+          {
+            selector:"edge",
+            style:{
+              "curve-style":"bezier",
+              "line-color":"#999",
+              "line-opacity":0.6,
+              "width":"mapData(weight,0,90,0,12)"
+             
+            }
+          }
+        ],
+        // Disable all interactions (no zoom/pan/drag)
+        userZoomingEnabled: false,
+        userPanningEnabled: false,
+        boxSelectionEnabled: false,
+        autoungrabify: true
+      });
+
+      // Apply saved positions
+      cy.nodes().forEach(n => {
+        const p = saved.positions?.[n.id()];
+        if (p) n.position(p);
+      });
+
+      // Use preset: draws exactly at those positions
+      cy.layout({ name: "preset" }).run();
+cy.fit(undefined, 40);  // responsive framing to screen size
+
+
+      // Apply saved viewport so both devices show the same framing
+      // if (saved.viewport) cy.viewport(saved.viewport);
+    })().catch(err => {
+      document.body.innerHTML = `<div style="padding:16px;color:#b45309;font-family:system-ui;">${err.message}</div>`;
+      console.error(err);
+    });
+  </script>
+</body>
+</html>

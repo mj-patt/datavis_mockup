@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Generate Authors Layout</title>
+
+  <script src="https://unpkg.com/cytoscape@3.28.1/dist/cytoscape.min.js"></script>
+  <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
+
+  <style>
+    html,body{margin:0;height:100%}
+    #cy{width:100%;height:100%}
+    .panel{
+      position:fixed; left:12px; top:12px; z-index:9999;
+      background:rgba(0,0,0,.75); color:#fff;
+      padding:10px 12px; border-radius:12px;
+      font-family:system-ui; font-size:12px; max-width: 86vw;
+    }
+    .row{ margin-top:8px; display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    button{
+      padding:8px 10px; border-radius:10px; border:0; cursor:pointer;
+      font-weight:700;
+    }
+    button:disabled{ opacity:.5; cursor:not-allowed; }
+    code{ background:rgba(255,255,255,.15); padding:2px 6px; border-radius:8px; }
+  </style>
+</head>
+<body>
+  <div class="panel">
+    <div id="status">Loading CSV & generating COSE layout…</div>
+    <div class="row">
+      <button id="downloadBtn" disabled>Download authors_layout.json</button>
+      <span id="hint"></span>
+    </div>
+    <div class="row" style="opacity:.85">
+      Put the downloaded file into <code>public/authors_layout.json</code>
+    </div>
+  </div>
+
+  <div id="cy"></div>
+
+  <script>
+    const statusEl = document.getElementById("status");
+    const downloadBtn = document.getElementById("downloadBtn");
+    const hintEl = document.getElementById("hint");
+
+    let generatedPayload = null;
+
+    function normalize(s){ return (s ?? "").toString().trim().replace(/^\uFEFF/, ""); }
+
+    function parseCsv(text){
+      const res = Papa.parse(text, {
+        header:true,
+        skipEmptyLines:true,
+        dynamicTyping:false,
+        delimiter:";"
+      });
+      return (res.data || []).filter(r =>
+        Object.keys(r).some(k => (r[k] ?? "").toString().trim() !== "")
+      );
+    }
+
+    function buildAuthorElements(rows){
+      const paperAuthors = new Map();
+      const authors = new Map();
+
+      for (const r of rows){
+        const author_id = normalize(r.author_id);
+        const author_name = (r.author_name ?? "").toString().trim();
+        const paper_id = normalize(r.paper_id);
+        if (!author_id || !paper_id) continue;
+
+        if (!authors.has(author_id)) authors.set(author_id, author_name || author_id);
+        if (!paperAuthors.has(paper_id)) paperAuthors.set(paper_id, new Set());
+        paperAuthors.get(paper_id).add(author_id);
+      }
+
+      const edgeCounts = new Map();
+      const connected = new Set();
+
+      for (const set of paperAuthors.values()){
+        const list = Array.from(set).sort();
+        if (list.length < 2) continue;
+        for (let i=0;i<list.length;i++){
+          for (let j=i+1;j<list.length;j++){
+            const a=list[i], b=list[j];
+            const key = `${a}|${b}`;
+            edgeCounts.set(key, (edgeCounts.get(key) || 0) + 1);
+            connected.add(a); connected.add(b);
+          }
+        }
+      }
+
+      const nodes = [];
+      for (const [id,name] of authors.entries()){
+        if (!connected.has(id)) continue;
+        nodes.push({ data:{ id, label:name } });
+      }
+
+      const edges = [];
+      for (const [key,w] of edgeCounts.entries()){
+        const [source,target] = key.split("|");
+        edges.push({ data:{ id:key, source, target, weight:w } });
+      }
+
+      return [...nodes, ...edges];
+    }
+
+    function buildDownload(payload, filename){
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type:"application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    downloadBtn.addEventListener("click", () => {
+      if (!generatedPayload) return;
+      buildDownload(generatedPayload, "authors_layout.json");
+      hintEl.textContent = "Downloaded ✔";
+    });
+
+    (async () => {
+      try {
+        const resp = await fetch("./mockup_data.csv", { cache:"no-store" });
+        if (!resp.ok) throw new Error(`Cannot fetch mockup_data.csv (HTTP ${resp.status})`);
+        const text = await resp.text();
+
+        const rows = parseCsv(text);
+        const elements = buildAuthorElements(rows);
+
+        statusEl.textContent = `Running COSE layout… (nodes+edges: ${elements.length})`;
+
+      // 1) Create cy WITHOUT layout (so nothing starts yet)
+const cy = cytoscape({
+  container: document.getElementById("cy"),
+  elements,
+  style: [
+    { selector: "node", style: { "background-color": "#3b82f6", "width": 8, "height": 8 } },
+    { selector: "edge", style: { "line-color": "#999", "line-opacity": 0.4 } }
+  ]
+});
+
+// 2) Create the layout object (still not running)
+const layout = cy.layout({
+//   name: "cose",
+//   randomize: true,
+//   animate: false,
+//   padding: 60,
+//   nodeRepulsion: 20000,
+//   idealEdgeLength: 190,
+//   nodeOverlap: 150,
+//   componentSpacing: 140,
+//   numIter: 1500
+name: "cose",
+  randomize: true,
+  animate: false,
+  padding: 100,
+  nodeRepulsion: 2000, // determine clustering, lower number->forming tighter cluster
+  idealEdgeLength: 140,
+  nodeOverlap: 5000, // determine the gap between nodes
+  componentSpacing: 140,
+  numIter: 1000
+});
+
+// 3) Attach listener BEFORE running
+layout.one("layoutstop", () => {
+  cy.fit(undefined, 40); // sets a consistent framing
+
+  const positions = {};
+  cy.nodes().forEach(n => positions[n.id()] = n.position());
+
+  const viewport = { zoom: cy.zoom(), pan: cy.pan() };
+
+  generatedPayload = { positions, viewport };
+  statusEl.textContent = "Layout ready. Click Download.";
+  downloadBtn.disabled = false;
+});
+
+// 4) Now run
+statusEl.textContent = "Running COSE layout…";
+layout.run();
+
+
+        cy.one("layoutstop", () => {
+          // Fix a consistent framing and save it too
+          cy.fit(undefined, 40);
+
+          const positions = {};
+          cy.nodes().forEach(n => positions[n.id()] = n.position());
+          const viewport = { zoom: cy.zoom(), pan: cy.pan() };
+
+          generatedPayload = { positions, viewport };
+
+          statusEl.textContent = "Layout ready. Click the download button.";
+          downloadBtn.disabled = false;
+        });
+
+      } catch (e) {
+        console.error(e);
+        statusEl.textContent = `Error: ${e.message}`;
+      }
+    })();
+  </script>
+</body>
+</html>

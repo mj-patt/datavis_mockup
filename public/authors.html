@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Author Collaboration Graph (Layer 1)</title>
+
+  <link rel="stylesheet" href="styles.css" />
+
+  <script src="https://unpkg.com/cytoscape@3.28.1/dist/cytoscape.min.js"></script>
+  <script src="https://unpkg.com/cytoscape-fcose@2.2.0/cytoscape-fcose.js"></script>
+  <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
+
+  <style>
+    /* Simple tooltip panel */
+    #tooltip {
+      position: fixed;
+      z-index: 9999;
+      max-width: 380px;
+      max-height: 55vh;
+      overflow: auto;
+      display: none;
+
+      background: rgba(15, 23, 48, 0.96);
+      border: 1px solid rgba(255,255,255,.15);
+      border-radius: 12px;
+      padding: 10px 12px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.35);
+      color: #e8eeff;
+      font-size: 12px;
+      line-height: 1.35;
+    }
+    #tooltip h3 {
+      margin: 0 0 6px;
+      font-size: 13px;
+    }
+    #tooltip .muted { color: rgba(232,238,255,.75); }
+    #tooltip ul { margin: 6px 0 0 18px; padding: 0; }
+    #tooltip li { margin: 2px 0; }
+    #tooltip .pill {
+      display: inline-block;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.15);
+      background: rgba(255,255,255,.06);
+      margin-right: 6px;
+      margin-top: 6px;
+    }
+  </style>
+</head>
+
+<body>
+  <header style="padding:12px 16px; border-bottom:1px solid #ddd;">
+    <h1 style="margin:0 0 6px; font-size:18px;">Author Collaboration Graph (Layer 1)</h1>
+    
+  </header>
+
+  <div id="cy" style="height: calc(100vh - 70px); width: 100%;"></div>
+
+  <!-- Tooltip container -->
+  <div id="tooltip"></div>
+
+  <script src="./authors.js"></script>
+</body>
+</html>

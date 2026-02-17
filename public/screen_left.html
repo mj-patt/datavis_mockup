@@ -1,0 +1,92 @@
+<!-- <!doctype html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    html,body{margin:0;height:100%;overflow:hidden;background:#000}
+    iframe{width:100%;height:100%;border:0;display:block}
+  </style>
+</head>
+<body>
+  <iframe id="frame" src="overview-left.html"></iframe>
+
+  <script>
+    const MODE_KEY = "viz:mode";
+    const frame = document.getElementById("frame");
+
+    function applyMode() {
+      const mode = localStorage.getItem(MODE_KEY) || "overview";
+      const target = (mode === "controlDisplay") ? "display.html" : "overview-left.html";
+      if (frame.getAttribute("src") !== target) frame.setAttribute("src", target);
+    }
+
+    applyMode();
+    window.addEventListener("storage", (e) => { if (e.key === MODE_KEY) applyMode(); });
+    window.addEventListener("focus", applyMode);
+  </script>
+</body>
+</html> -->
+<!doctype html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    html,body{margin:0;height:100%;overflow:hidden;background:#000}
+    iframe{width:100%;height:100%;border:0;display:block}
+  </style>
+</head>
+<body>
+  <iframe id="frame" src="overview-left.html"></iframe>
+
+  <!-- <script>
+    const MODE_KEY = "viz:mode";
+    const frame = document.getElementById("frame");
+
+    function applyMode() {
+      // DEFAULT = overview
+      const mode = localStorage.getItem(MODE_KEY) || "overview";
+
+      const target =
+        mode === "controlDisplay"
+          ? "display.html"
+          : "overview-left.html";
+
+      if (frame.getAttribute("src") !== target) {
+        frame.setAttribute("src", target);
+      }
+    }
+
+    // Ensure first visit always starts in overview
+    if (!localStorage.getItem(MODE_KEY)) {
+      localStorage.setItem(MODE_KEY, "overview");
+    }
+
+    applyMode();
+
+    window.addEventListener("storage", (e) => {
+      if (e.key === MODE_KEY) applyMode();
+    });
+
+    window.addEventListener("focus", applyMode);
+  </script> -->
+  <script>
+    const MODE_KEY = "viz:mode";
+    const frame = document.getElementById("frame");
+  
+    // ALWAYS start in overview when this page loads
+    localStorage.setItem(MODE_KEY, "overview");
+  
+    function applyMode() {
+      const mode = localStorage.getItem(MODE_KEY) || "overview";
+      const target = (mode === "controlDisplay") ? "display.html" : "overview-left.html";
+      if (frame.getAttribute("src") !== target) frame.setAttribute("src", target);
+    }
+  
+    applyMode();
+  
+    window.addEventListener("storage", (e) => { if (e.key === MODE_KEY) applyMode(); });
+    window.addEventListener("focus", applyMode);
+  </script>
+  
+</body>
+</html>

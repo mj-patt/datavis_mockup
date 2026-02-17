@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Control</title>
+
+  <link rel="stylesheet" href="styles.css" />
+
+  <style>
+    body {
+      margin: 0;
+      background: #0b1020;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      height: 100vh;
+    }
+
+    /* HOT CORNER STRIP (top area) */
+    #hotCorner {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 12vh;                 /* top area size */
+      z-index: 9999;
+      background: transparent;
+      pointer-events: auto;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Optional subtle feedback flash */
+    #flash {
+      position: fixed;
+      inset: 0;
+      background: rgba(122,162,255,.14);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .12s ease;
+      z-index: 10000;
+    }
+    #flash.on { opacity: 1; }
+
+    /* Main container */
+    .lines {
+      width: 88vw;
+      height: 82vh;
+
+      display: flex;
+      flex-direction: row;
+      justify-content: space-between;
+    }
+
+    .line {
+      height: 100%;
+      width: 8%;
+
+      border-radius: 999px;
+      background: rgba(255,255,255,.14);
+      border: 1px solid rgba(255,255,255,.10);
+
+      cursor: pointer;
+      transition: all .12s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .line.active {
+      background: #7aa2ff;
+      border-color: rgba(122,162,255,.55);
+      box-shadow: 0 0 16px rgba(122,162,255,.40);
+    }
+
+    .line:active {
+      transform: scale(.98);
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Hot corner strip -->
+  <div id="hotCorner"></div>
+  <div id="flash"></div>
+
+  <div class="lines" id="lines">
+    <div class="line" data-page="papers.html"></div>
+    <div class="line" data-page="index.html"></div>
+    <div class="line" data-page="institutions.html"></div>
+    <div class="line" data-page="countries.html"></div>
+    <div class="line" data-page="continents.html"></div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = "viz:currentLayer";
+    const MODE_KEY = "viz:mode";
+
+    const container = document.getElementById("lines");
+    const hotCorner = document.getElementById("hotCorner");
+    const flash = document.getElementById("flash");
+
+    function getCurrent() {
+      return localStorage.getItem(STORAGE_KEY) || "index.html";
+    }
+
+    function setActive(page) {
+      localStorage.setItem(STORAGE_KEY, page);
+
+      container.querySelectorAll(".line").forEach(el => {
+        el.classList.toggle("active", el.getAttribute("data-page") === page);
+      });
+    }
+
+    // Tap to change layer
+    container.addEventListener("click", (e) => {
+      const line = e.target.closest(".line");
+      if (!line) return;
+      setActive(line.getAttribute("data-page"));
+    });
+
+    // Initial state
+    setActive(getCurrent());
+
+    // Sync if changed from display screen
+    window.addEventListener("storage", (e) => {
+      if (e.key === STORAGE_KEY) setActive(getCurrent());
+    });
+
+    function doFlash() {
+      flash.classList.add("on");
+      setTimeout(() => flash.classList.remove("on"), 120);
+    }
+
+    function goToOverview() {
+      localStorage.setItem(MODE_KEY, "overview");
+      doFlash();
+      console.log("Mode -> overview");
+    }
+
+    // Desktop: double click on hot corner
+    hotCorner.addEventListener("dblclick", (e) => {
+      e.preventDefault();
+      goToOverview();
+    });
+
+    // Mobile: double tap on hot corner
+    let lastTapTime = 0;
+    let lastX = 0;
+    let lastY = 0;
+
+    hotCorner.addEventListener("touchend", (e) => {
+      const now = Date.now();
+      const t = e.changedTouches && e.changedTouches[0];
+      if (!t) return;
+
+      const x = t.clientX;
+      const y = t.clientY;
+
+      const dt = now - lastTapTime;
+      const dx = Math.abs(x - lastX);
+      const dy = Math.abs(y - lastY);
+
+      const isDoubleTap = dt > 0 && dt < 300 && dx < 24 && dy < 24;
+
+      if (isDoubleTap) {
+        goToOverview();
+        lastTapTime = 0;
+      } else {
+        lastTapTime = now;
+        lastX = x;
+        lastY = y;
+      }
+    }, { passive: true });
+  </script>
+</body>
+</html>
