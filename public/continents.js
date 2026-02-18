@@ -156,14 +156,9 @@
           {
             selector: "edge.edgeHL",
             style: {
-              "line-color": "#00e5ff", // neon core
+              "line-color": "#00e5ff",
               "line-opacity": 1,
 
-              // // --- NEON GLOW ---
-              // "underlay-color": "#00e5ff",
-              // "underlay-opacity": 0.6,
-              // "underlay-padding": 6,
-              // width: "mapData(weight, 1, 10, 3, 12)",
               width: "mapData(weight, 1, 10, 3, 13)",
 
               // smooth look

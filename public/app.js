@@ -4,7 +4,7 @@
     const tooltip = document.getElementById("tooltip");
     if (!CY_EL || !tooltip) return;
 
-    // tooltip draggable ---
+    // tooltip draggable
     (() => {
       let dragging = false;
       let offsetX = 0;
